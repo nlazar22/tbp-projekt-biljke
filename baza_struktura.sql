@@ -40,9 +40,3 @@ CREATE TABLE podsjetnici (
     datum_podsjetnika DATE,
     rijeseno BOOLEAN DEFAULT FALSE
 );
-
-INSERT INTO vrste (naziv, interval_zalijevanja_dani) VALUES 
-('Monstera', 7),
-('Fikus', 10),
-('Kaktus', 20),
-('Orhideja', 5);
