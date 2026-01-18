@@ -69,7 +69,7 @@ if opcija == "Nadzorna ploča":
                 "datum_podsjetnika": st.column_config.DateColumn("Datum", disabled=True),
             },
             hide_index=True,
-            use_container_width=True,
+            width="stretch",
             key="editor_podsjetnika" 
         )
 
