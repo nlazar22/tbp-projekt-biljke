@@ -5,45 +5,35 @@ from datetime import datetime
 import qrcode
 from io import BytesIO
 import urllib.parse
+from sqlalchemy import create_engine, text
 
 st.set_page_config(page_title="Moje Biljke", layout="wide")
 
 def init_connection():
-    return psycopg2.connect(
-        host="localhost",
-        database="biljke_db", 
-        user="postgres",       
-        password="postgres"        
-    )
+    engine = create_engine('postgresql+psycopg2://postgres:postgres@localhost/biljke_db')
+    return engine.connect()
 
 def run_query(query, params=None):
-    conn = init_connection()
-    try:
+    with init_connection() as conn:
         if params:
-            df = pd.read_sql(query, conn, params=params)
+            df = pd.read_sql(text(query), conn, params=params)
         else:
-            df = pd.read_sql(query, conn)
+            df = pd.read_sql(text(query), conn)
         return df
-    finally:
-        conn.close()
 
 def run_action(query, params):
-    conn = init_connection()
-    try:
-        cur = conn.cursor()
-        cur.execute(query, params)
-        conn.commit()
-        cur.close()
-        return True
-    except Exception as e:
-        st.error(f"Greška u bazi: {e}")
-        return False
-    finally:
-        conn.close()
+    with init_connection() as conn:
+        try:
+            conn.execute(text(query), params)
+            conn.commit()
+            return True
+        except Exception as e:
+            st.error(f"Greška u bazi: {e}")
+            return False
 
 st.sidebar.title("🌿 Izbornik")
 opcija = st.sidebar.radio("Odaberi akciju:", 
-    ["Nadzorna ploča", "Unesi novu biljku", "Zabilježi događaj", "Unesi mjerenje", "Generiraj QR kod"])
+    ["Nadzorna ploča", "Unesi novu biljku", "Zabilježi događaj", "Unesi mjerenje", "Generiraj QR kod", "Izvoz podataka"])
 
 if opcija == "Nadzorna ploča":
     st.title("📊 Pregled stanja biljaka")
@@ -219,3 +209,23 @@ elif opcija == "Generiraj QR kod":
                 )
     else:
         st.error("Nemaš unesenih biljaka u bazi.")
+
+elif opcija == "Izvoz podataka":
+    st.subheader("📂 Izvoz podataka")
+    df = run_query("SELECT * FROM povijest_stanja")
+    
+    if not df.empty and 'period_vazenja' in df.columns:
+        df['period_vazenja'] = df['period_vazenja'].astype(str)
+    # ----------------------------------------------------
+    
+    if not df.empty:
+        csv = df.to_csv(index=False).encode('utf-8')
+        st.download_button(
+            label="⬇️ Preuzmi CSV",
+            data=csv,
+            file_name='povijest_stanja.csv',
+            mime='text/csv',
+        )
+        st.dataframe(df) 
+    else:
+        st.warning("Nema podataka za izvoz.")
