@@ -2,6 +2,9 @@ import streamlit as st
 import psycopg2
 import pandas as pd
 from datetime import datetime
+import qrcode
+from io import BytesIO
+import urllib.parse
 
 st.set_page_config(page_title="Moje Biljke", layout="wide")
 
@@ -40,7 +43,7 @@ def run_action(query, params):
 
 st.sidebar.title("🌿 Izbornik")
 opcija = st.sidebar.radio("Odaberi akciju:", 
-    ["Nadzorna ploča", "Unesi novu biljku", "Zabilježi događaj (Zalijevanje)", "Unesi mjerenje (Senzor)"])
+    ["Nadzorna ploča", "Unesi novu biljku", "Zabilježi događaj", "Unesi mjerenje", "Generiraj QR kod"])
 
 if opcija == "Nadzorna ploča":
     st.title("📊 Pregled stanja biljaka")
@@ -105,7 +108,7 @@ elif opcija == "Unesi novu biljku":
         if run_action("INSERT INTO biljke (vrsta_id, nadimak, slika_url) VALUES (%s, %s, %s)", (vrsta_id, nadimak, slika)):
             st.success(f"Biljka '{nadimak}' je uspješno dodana!")
 
-elif opcija == "Zabilježi događaj (Zalijevanje)":
+elif opcija == "Zabilježi događaj":
     st.title("💧 Zabilježi brigu")
     st.info("Kada ovdje uneseš 'Zalijevanje', baza će automatski kreirati podsjetnik za idući put (Trigger)!")
     
@@ -119,14 +122,13 @@ elif opcija == "Zabilježi događaj (Zalijevanje)":
         
         if st.button("Spremi događaj"):
             if run_action("INSERT INTO dogadaji (biljka_id, tip_dogadaja, napomena) VALUES (%s, %s, %s)", (biljka_id, tip, napomena)):
-                st.balloons() # Malo efekata za profesora
-                st.success("Događaj spremljen! Provjeri 'Nadzornu ploču' da vidiš je li trigger kreirao novi datum.")
+                st.success("Događaj spremljen! Provjeri 'Nadzornu ploču' da vidiš je li kreiran podsjetnik.")
     else:
         st.error("Prvo moraš unijeti neku biljku!")
 
-elif opcija == "Unesi mjerenje (Senzor)":
+elif opcija == "Unesi mjerenje":
     st.title("🌡️ Unos stanja okoliša")
-    st.info("Ako uneseš lošu temperaturu, baza će odmah kreirati HITNI alarm (Trigger)!")
+    st.info("Ako uneseš lošu temperaturu, baza će odmah kreirati HITNI alarm!")
     
     biljke = run_query("SELECT id, nadimak FROM biljke")
     if not biljke.empty:
@@ -144,5 +146,45 @@ elif opcija == "Unesi mjerenje (Senzor)":
                 if not alarmi.empty:
                     st.error("⚠️ PAŽNJA! Baza je detektirala loše uvjete i kreirala alarm!")
                     st.table(alarmi)
+
     else:
         st.error("Nema biljaka.")
+
+elif opcija == "Generiraj QR kod":
+    st.title("🖨️ Isprintaj naljepnice za tegle")
+    st.info("Skeniranjem QR koda otvorit će se Google pretraga za ovu biljku!")
+    
+    biljke = run_query("SELECT id, nadimak, vrsta_id FROM biljke")
+    
+    vrste = run_query("SELECT id, naziv FROM vrste")
+    
+    if not biljke.empty:
+        odabrana_biljka_nadimak = st.selectbox("Odaberi biljku za naljepnicu:", biljke["nadimak"])
+        
+        biljka_red = biljke[biljke["nadimak"] == odabrana_biljka_nadimak].iloc[0]
+        vrsta_naziv = vrste[vrste["id"] == biljka_red["vrsta_id"]]["naziv"].values[0]
+        
+        if st.button("Generiraj QR Kod"):
+            pojam_za_pretragu = f"{vrsta_naziv} njega i savjeti"
+            siguran_pojam = urllib.parse.quote(pojam_za_pretragu)
+            web_link = f"https://www.google.com/search?q={siguran_pojam}"
+            
+            img = qrcode.make(web_link)
+            buffer = BytesIO()
+            img.save(buffer, format="PNG")
+            img_bytes = buffer.getvalue()
+            
+            col1, col2 = st.columns([1, 2])
+            with col1:
+                st.image(img_bytes, caption=f"Skeniraj me!", width=200)
+            
+            with col2:
+                st.success(f"Kod vodi na Google pretragu za: '{vrsta_naziv}'")
+                st.download_button(
+                    label="⬇️ Preuzmi naljepnicu",
+                    data=img_bytes,
+                    file_name=f"qr_{odabrana_biljka_nadimak}.png",
+                    mime="image/png"
+                )
+    else:
+        st.error("Nemaš unesenih biljaka u bazi.")
