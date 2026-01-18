@@ -22,14 +22,19 @@ def run_query(query, params=None):
         return df
 
 def run_action(query, params):
-    with init_connection() as conn:
-        try:
-            conn.execute(text(query), params)
-            conn.commit()
-            return True
-        except Exception as e:
-            st.error(f"Greška u bazi: {e}")
-            return False
+    engine = create_engine('postgresql+psycopg2://postgres:postgres@localhost/biljke_db')
+    conn = engine.raw_connection() 
+    try:
+        cur = conn.cursor()
+        cur.execute(query, params)
+        conn.commit()
+        cur.close() 
+        return True
+    except Exception as e:
+        st.error(f"Greška u bazi: {e}")
+        return False
+    finally:
+        conn.close() 
 
 st.sidebar.title("🌿 Izbornik")
 opcija = st.sidebar.radio("Odaberi akciju:", 
@@ -163,10 +168,16 @@ elif opcija == "Unesi mjerenje":
             if run_action("INSERT INTO povijest_stanja (biljka_id, temperatura, vlaga_zraka, period_vazenja) VALUES (%s, %s, %s, tstzrange(current_timestamp, null))", (biljka_id, temp, vlaga)):
                 st.success("Mjerenje zabilježeno.")
                 
-                alarmi = run_query("SELECT * FROM podsjetnici WHERE rijeseno = FALSE AND poruka LIKE 'HITNO%'")
+                alarmi = run_query(
+                    "SELECT * FROM podsjetnici WHERE rijeseno = FALSE AND poruka LIKE 'HITNO%%' AND biljka_id = :id", 
+                    {"id": biljka_id}
+                )
+                
                 if not alarmi.empty:
-                    st.error("⚠️ PAŽNJA! Baza je detektirala loše uvjete i kreirala alarm!")
+                    st.error(f"⚠️ PAŽNJA! Temperatura od {temp}°C je loša za {odabrana_biljka}!")
                     st.table(alarmi)
+                else:
+                    st.info(f"Uvjeti su dobri za {odabrana_biljka}.")
 
     else:
         st.error("Nema biljaka.")
