@@ -94,6 +94,37 @@ if opcija == "Nadzorna ploča":
     df_stat = run_query("SELECT * FROM statistika_brige_o_biljkama")
     st.bar_chart(df_stat, x="nadimak", y="ukupno_dogadaja")
 
+    st.markdown("---")
+    st.subheader("🌡️ Kretanje temperature i vlage")
+    
+    query_graf = """
+    SELECT p.id, b.nadimak, p.temperatura, p.vlaga_zraka, lower(p.period_vazenja) as vrijeme
+    FROM povijest_stanja p
+    JOIN biljke b ON p.biljka_id = b.id
+    ORDER BY p.period_vazenja ASC
+    """
+    df_graf = run_query(query_graf)
+
+    if not df_graf.empty:
+        lista_biljaka = df_graf["nadimak"].unique()
+        odabrana_za_graf = st.selectbox("Odaberi biljku za analizu:", lista_biljaka)
+        
+        podaci_za_prikaz = df_graf[df_graf["nadimak"] == odabrana_za_graf]
+
+        podaci_za_prikaz = podaci_za_prikaz.set_index("vrijeme")
+
+        col_g1, col_g2 = st.columns(2)
+        
+        with col_g1:
+            st.write(f"Temperatura (°C) - {odabrana_za_graf}")
+            st.line_chart(podaci_za_prikaz["temperatura"], color="#FF4B4B") 
+            
+        with col_g2:
+            st.write(f"Vlaga zraka (%) - {odabrana_za_graf}")
+            st.line_chart(podaci_za_prikaz["vlaga_zraka"], color="#0000FF") 
+    else:
+        st.info("Još nema unesenih mjerenja za prikaz grafa.") 
+
 elif opcija == "Unesi novu biljku":
     st.title("🌱 Nova biljka")
     
