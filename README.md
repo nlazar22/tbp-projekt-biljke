@@ -58,6 +58,8 @@ Prvo je potrebno kreirati praznu bazu podataka (npr. `biljke_db`) na vašem Post
 Ako preferirate komandnu liniju:
 ```sql
 psql -U postgres -d biljke_db -f baza_struktura.sql
-
----
+```
 *Created by Nikola Lazar, 2026.*
+
+
+
