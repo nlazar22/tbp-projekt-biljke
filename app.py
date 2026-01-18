@@ -216,7 +216,6 @@ elif opcija == "Izvoz podataka":
     
     if not df.empty and 'period_vazenja' in df.columns:
         df['period_vazenja'] = df['period_vazenja'].astype(str)
-    # ----------------------------------------------------
     
     if not df.empty:
         csv = df.to_csv(index=False).encode('utf-8')
