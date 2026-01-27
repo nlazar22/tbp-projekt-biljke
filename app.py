@@ -81,7 +81,7 @@ if opcija == "Nadzorna ploča":
 
     st.markdown("---")
     
-    st.subheader("📋 Glavni registar (View: pregled_statusa_biljaka)")
+    st.subheader("📋 Glavni registar ")
     df_view = run_query("SELECT * FROM pregled_statusa_biljaka")
     st.dataframe(df_view)
 
